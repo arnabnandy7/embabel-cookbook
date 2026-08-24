@@ -5,6 +5,7 @@
 When an agent application starts correctly, a lot of wiring happens before the first invocation runs.
 This chapter traces that boot path, from the starter dependency in `pom.xml` through the auto-configurations, property loaders, and metadata readers that make agent deployment work.
 The boundary matters: Spring still creates the `@Agent` bean and manages its lifecycle, while Embabel reads the annotations and deploys the bean as an agent.
+The practical goal is to find which layer failed: Spring bean creation, Embabel agent deployment, model selection, planning, tool execution, or structured output binding.
 
 [[cookbook.agent-debugging.key-concepts]]
 === Key Concepts
@@ -22,7 +23,24 @@ The boundary matters: Spring still creates the `@Agent` bean and manages its lif
 `ScanConfiguration`, `AgentScanningPostProcessorDelegate`, `AgentMetadataReader`, `DelegatingAgentScanningBeanPostProcessor`, and `AgentDeployer` are the types that discover agent classes and deploy them into the platform.
 The `@Agent` class is still a normal Spring bean, so the Spring container is responsible for instantiating it, injecting its dependencies, and keeping it in the application context.
 
+[[cookbook.agent-debugging.logs]]
+Debug logging shows which auto-configurations, model providers, tool groups, and agents were created.
+
+[[cookbook.agent-debugging.deployment]]
+Agent deployment is separate from Spring bean creation.
+A class can be a valid Spring bean but still fail to become a deployed Embabel agent if metadata scanning or deployment fails.
+
+[[cookbook.agent-debugging.planning]]
+Planner failures usually mean the current blackboard state does not satisfy any action path to the requested goal.
+
+[[cookbook.agent-debugging.binding]]
+Structured output binding failures happen after the model responds, when the response cannot be converted into the expected object type.
+
 === How It Works
+
+The startup path is easiest to debug as a sequence of checkpoints:
+
+image::agent-debugging-startup-flow.svg[Agent startup flow]
 
 * `pom.xml` declares `com.embabel.agent:embabel-agent-starter-openai`, so the cookbook app gets both the platform runtime and the OpenAI model wiring on the classpath.
 * Spring Boot reads `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` from the starter dependencies and imports `com.embabel.agent.autoconfigure.models.openai.AgentOpenAiAutoConfiguration` before `com.embabel.agent.autoconfigure.platform.AgentPlatformAutoConfiguration`.
@@ -31,9 +49,9 @@ The `@Agent` class is still a normal Spring bean, so the Spring container is res
 * `CommonPlatformPropertiesLoader` and `AgentPlatformPropertiesLoader` load the platform properties from classpath resources; `AgentPlatformPropertiesLoader` reads `classpath:agent-platform.properties` and `classpath:agent-application.properties`.
 * `ScanConfiguration` applies `@ConfigurationPropertiesScan` and `@ComponentScan` to the core Embabel packages: `com.embabel.agent.api`, `com.embabel.agent.core`, `com.embabel.agent.experimental`, `com.embabel.agent.prompt`, `com.embabel.agent.spi`, `com.embabel.agent.test`, `com.embabel.agent.tools`, and `com.embabel.agent.web`.
 * `AgentPlatformProperties` binds the platform configuration tree, including `scanning`, `ranking`, `llmOperations`, `processIdGeneration`, `autonomy`, `models`, `sse`, `rest`, `test`, `actionQos`, and `threading`.
-* `AgentPlatformConfiguration` contributes the core runtime beans: `nameGenerator`, `agentInstrumentation`, `toolDecorator`, `templateRenderer`, `defaultLogger`, `eventListener`, `defaultColorPalette`, `embabelJacksonObjectMapper`, `ranker`, `agentProcessRepository`, `contextRepository`, `toolGroupResolver`, `toolsStats`, `actionScheduler`, `modelProvider`, `autoLlmSelectionCriteriaResolver`, and `outputChannel`.
-* `ToolGroupsConfiguration` contributes the tool group beans that the platform can expose, including `mathToolGroup`, `mcpWebToolsGroup`, `mapsToolsGroup`, `browserAutomationWebToolsGroup`, and `githubToolsGroup`.
-* `EmbeddingTrackingConfiguration` contributes `embeddingTrackingBeanPostProcessor`, which lets the platform observe embedding-related work when the relevant listeners are present.
+* `AgentPlatformConfiguration` provides the core runtime beans: `nameGenerator`, `agentInstrumentation`, `toolDecorator`, `templateRenderer`, `defaultLogger`, `eventListener`, `defaultColorPalette`, `embabelJacksonObjectMapper`, `ranker`, `agentProcessRepository`, `contextRepository`, `toolGroupResolver`, `toolsStats`, `actionScheduler`, `modelProvider`, `autoLlmSelectionCriteriaResolver`, and `outputChannel`.
+* `ToolGroupsConfiguration` provides the tool group beans that the platform can expose, including `mathToolGroup`, `mcpWebToolsGroup`, `mapsToolsGroup`, `browserAutomationWebToolsGroup`, and `githubToolsGroup`.
+* `EmbeddingTrackingConfiguration` provides `embeddingTrackingBeanPostProcessor`, which lets the platform observe embedding-related work when the relevant listeners are present.
 * Spring then instantiates the `@Agent` class like any other bean, wires its constructor arguments, and registers it in the application context.
 * `DelegatingAgentScanningBeanPostProcessor` buffers beans during startup, then, after the context refresh, looks up `AgentScanningPostProcessorDelegate` from the application context and hands the queued beans to it.
 * `AgentScanningPostProcessorDelegate` performs the actual scan of candidate beans and uses `AgentMetadataReader` to inspect `@Agent`, `@Action`, `@Condition`, and `@AchievesGoal`.
@@ -41,6 +59,51 @@ The `@Agent` class is still a normal Spring bean, so the Spring container is res
 * `AgentDeployer` takes the discovered agents, the `AgentPlatform`, and the scanning properties, then deploys the agents into the running platform.
 * Spring owns the bean instance; Embabel uses the metadata and deployment path to make that bean available as an agent.
 
+To inspect startup and execution, enable debug logging for the Embabel packages:
+
+[source,properties]
+----
+logging.level.com.embabel.agent=DEBUG
+logging.level.com.embabel.plan=DEBUG
+logging.level.com.embabel.common.ai.model=DEBUG
+----
+
+Common symptoms usually point to one layer first:
+
+[cols="1,1,1", options="header"]
+|===
+|Symptom |Likely area |What to inspect
+
+|Agent bean is not created
+|Spring configuration
+|Component scanning, constructor dependencies, active profiles
+
+|Agent bean exists but is not deployed
+|Agent scanning
+|`@Agent`, `@Action`, `@Condition`, `AgentMetadataReader`, `AgentDeployer` logs
+
+|No model can be selected
+|Model configuration
+|`embabel.models.default-llm`, `embabel.models.llms`, `embabel.models.roles`, provider API key configuration
+
+|Planner cannot find a path
+|Action model and blackboard state
+|Action preconditions, action inputs and outputs, current blackboard object types
+
+|LLM returns text but object creation fails
+|Structured output binding
+|The converter exception, the raw model response if available, and the target class constructor fields that are non-nullable
+
+|Tool call fails
+|Tool configuration
+|Tool group registration, tool arguments, external service errors
+|===
+
+A common debugging case is an agent that starts but cannot reach a goal.
+First inspect what state the planner saw, which actions were deployed, and which action preconditions were not satisfied.
+
 === Conclusion
 
-When startup goes wrong, the first places to inspect are the starter dependency in `pom.xml`, the auto-configuration imports, the property loader logs, and the deployment logs.
+When debugging an Embabel application, first locate the failing layer: Spring bean creation, Embabel agent deployment, model selection, planning, tool execution, or structured output binding.
+The startup logs tell you whether the application was wired correctly.
+The planner and execution logs tell you whether the deployed agent had the state, actions, tools, and model outputs needed to complete the goal.
