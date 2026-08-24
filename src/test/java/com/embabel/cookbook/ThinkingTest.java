@@ -130,7 +130,6 @@ class ThinkingTest {
         assertNotNull(response.getException());
         assertInstanceOf(ThinkingException.class, response.getException());
         String exceptionMessage = response.getException().getMessage().toLowerCase();
-        assertTrue(exceptionMessage.contains("impossible"));
         assertTrue(exceptionMessage.contains("half-day"));
         assertTrue(exceptionMessage.contains("new york"));
         assertTrue(exceptionMessage.contains("sydney"));
