@@ -15,11 +15,10 @@
  */
 package com.embabel.cookbook;
 
-import com.embabel.agent.api.common.Ai;
-import com.embabel.agent.api.common.PromptRunner;
-import com.embabel.common.core.thinking.ThinkingException;
-import com.embabel.common.core.thinking.ThinkingResponse;
-import com.embabel.cookbook.travel.domain.TravelPlan;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
@@ -30,7 +29,11 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestExecutionListeners;
 import org.springframework.test.context.support.DependencyInjectionTestExecutionListener;
 
-import static org.junit.jupiter.api.Assertions.*;
+import com.embabel.agent.api.common.Ai;
+import com.embabel.agent.api.common.PromptRunner;
+import com.embabel.common.core.thinking.ThinkingException;
+import com.embabel.common.core.thinking.ThinkingResponse;
+import com.embabel.cookbook.travel.domain.TravelPlan;
 
 // tag::bootstrap[]
 @SpringBootTest(classes = CookbookTestApplication.class)
@@ -129,7 +132,6 @@ class ThinkingTest {
         assertNull(response.getResult());
         assertNotNull(response.getException());
         assertInstanceOf(ThinkingException.class, response.getException());
-        String exceptionMessage = response.getException().getMessage().toLowerCase();
      }
     // end::nullable[]
 }
