@@ -119,16 +119,11 @@ logging.level.com.embabel.agent=DEBUG
 
 3 Set break points on the Embabel package. For example, see Intellij IDE https://www.jetbrains.com/help/idea/using-breakpoints.html#set-breakpoints[documentation].
 
-4 Launch the Spring Boot application using the `--debug-jvm` flag so it suspends execution and waits for the debugger to connect before running initialization code.
+4 Launch the Spring Boot application in debug mode. For example, see Intellij IDE https://www.jetbrains.com/help/idea/debugging-your-first-java-application.html#running-program[documentation].
 
- ./gradlew clean bootRun --debug-jvm
- 
+5 In the Spring Shell, execute the prompt to connect to the application.
 
-5 Connect the debugger to the application.  For example, see Intellij IDE https://www.jetbrains.com/help/idea/tutorial-remote-debug.html#create-run-configurations[documentation].
-
-6 In the Spring Shell, execute the prompt to connect to the application.
-
-7 Debug the app further as you would do in any other application.
+6 Debug the app further as you would do in any other application.
 
 === Conclusion
 
