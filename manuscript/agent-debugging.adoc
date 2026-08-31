@@ -102,7 +102,7 @@ Common symptoms usually point to one layer first:
 A common debugging case is an agent that starts but cannot reach a goal.
 First inspect what state the planner saw, which actions were deployed, and which action preconditions were not satisfied.
 
-For example, if you would like to debug a Spring Boot app with an Embabel agent, then you can follow steps similar steps.
+For example, if you would like to debug a Spring Boot Shell application with an Embabel agent, then you can follow steps similar steps.
 
 1 Enable `Spring Shell` to interact with the application by setting the following properties in `application.properties` or in the equivalent properties file.
 
