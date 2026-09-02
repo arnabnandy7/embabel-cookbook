@@ -102,6 +102,25 @@ Common symptoms usually point to one layer first:
 A common debugging case is an agent that starts but cannot reach a goal.
 First inspect what state the planner saw, which actions were deployed, and which action preconditions were not satisfied.
 
+For example, if you would like to debug a Spring Boot Shell application with an Embabel agent, then you can follow similar steps as below.
+
+1. Enable `Spring Shell` to interact with the application by setting the following properties in `application.properties` or in the equivalent properties file.
+
+    spring.main.web-application-type=none
+    spring.shell.interactive.enabled=true
+
+2. Enable debug logging for the Embabel packages by setting thes following property.
+
+    logging.level.com.embabel.agent=DEBUG
+
+3. Set break points on the Embabel package. For example, see Intellij IDE https://www.jetbrains.com/help/idea/using-breakpoints.html#set-breakpoints[documentation].
+
+4. Launch the Spring Boot application in debug mode. For example, see Intellij IDE https://www.jetbrains.com/help/idea/debugging-your-first-java-application.html#running-program[documentation].
+
+5. In the Spring Shell, execute the prompt to connect to the application.
+
+6. Debug the app further as you would do in any other application.
+
 === Conclusion
 
 When debugging an Embabel application, first locate the failing layer: Spring bean creation, Embabel agent deployment, model selection, planning, tool execution, or structured output binding.
